@@ -1,6 +1,6 @@
 import os
 import subprocess
-import obspython as obs
+import obspy as obs
 
 def on_stream_start(event):
     if event == obs.OBS_FRONTEND_EVENT_STREAMING_STARTED:

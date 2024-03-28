@@ -2,19 +2,19 @@ import time
 import re
 import requests
 import tweepy
+import facebook
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+import json
 
 # Function to fetch the latest YouTube broadcast title and URL
 def fetch_youtube_broadcast_details():
-    # Assuming you have set up a service account and downloaded the JSON key file
     credentials = service_account.Credentials.from_service_account_file(
-        'path/to/your/service_account_file.json',
+        'muhKey.json',
         scopes=['https://www.googleapis.com/auth/youtube.readonly'])
 
     youtube = build('youtube', 'v3', credentials=credentials)
 
-    # Fetch live broadcasts
     request = youtube.liveBroadcasts().list(
         part='snippet,contentDetails',
         broadcastStatus='active'
@@ -29,47 +29,73 @@ def fetch_youtube_broadcast_details():
     else:
         return None, None
 
-# Function to search for the game in the database and download art
+# Modified to return False when the game art is not found
 def download_game_art(game_title):
-    # Placeholder for game database API call
-    # You'll replace this with actual API call logic to your game database
-    image_url = "http://example.com/path/to/game/art.jpg"
+    image_url = "http://example.com/path/to/game/art.jpg"  # Placeholder URL
     
-    response = requests.get(image_url)
-    if response.status_code == 200:
-        with open(f"{game_title}.jpg", 'wb') as file:
-            file.write(response.content)
-        return True
+    try:
+        response = requests.get(image_url)
+        if response.status_code == 200:
+            with open(f"{game_title}.jpg", 'wb') as file:
+                file.write(response.content)
+            return f"{game_title}.jpg"
+    except Exception as e:
+        print(f"Error downloading game art: {e}")
     return False
 
-# Function to post to Twitter
-def post_to_twitter(game_title, broadcast_url, image_path):
-    consumer_key = 'your_twitter_consumer_key'
-    consumer_secret = 'your_twitter_consumer_secret'
-    access_token = 'your_twitter_access_token'
-    access_token_secret = 'your_twitter_access_token_secret'
+
+def post_to_facebook(page_id, game_title, broadcast_url, image_path=None):
+    with open('facebookCreds.json', 'r') as file:
+        fb_creds = json.load(file)
+    access_token = fb_creds['access_token']
     
-    # Authenticate to Twitter
+    graph = facebook.GraphAPI(access_token)
+    message = f"Now broadcasting: {game_title}!\n\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
+    
+    if image_path:
+        # Post with image
+        with open(image_path, 'rb') as file:
+            graph.put_photo(image=open(image_path, 'rb'), message=message, album_path=page_id + "/photos")
+    else:
+        # Post without image
+        graph.put_object(parent_object=page_id, connection_name='feed', message=message)
+
+
+# Modified to use a default image if game art is not found
+def post_to_twitter(game_title, broadcast_url, image_path=None):
+    with open('twitterCreds.json', 'r') as file:
+        twtr = json.load(file)
+    consumer_key = twtr['twitter_consumer_key']
+    consumer_secret = twtr['twitter_consumer_secret']
+    access_token = twtr['twitter_access_token']
+    access_token_secret = twtr['twitter_access_token_secret']
+    
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
     auth.set_access_token(access_token, access_token_secret)
     api = tweepy.API(auth)
     
-    # Upload image
+    # Use the default 'bubble.png' if no image path is provided
+    image_path = image_path if image_path else "bubble.png"
     media = api.media_upload(image_path)
     
-    # Post tweet with image
-    tweet = f"Now broadcasting: {game_title}!\n\nWatch here: {broadcast_url} #{game_title}"
+    tweet = f"Now broadcasting: {game_title}!\n\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
     api.update_status(status=tweet, media_ids=[media.media_id_string])
 
 # Main logic
 if __name__ == "__main__":
-    time.sleep(30)  # Wait for 30 seconds after the broadcast starts
+    time.sleep(30)  # Delay to ensure the broadcast is live
 
-    # Fetch broadcast details
     broadcast_title, broadcast_url = fetch_youtube_broadcast_details()
     if broadcast_title:
         game_title_search = re.search(r'\[(.*?)\]', broadcast_title)
         if game_title_search:
             game_title = game_title_search.group(1)
-            if download_game_art(game_title):
-                post_to_twitter(game_title, broadcast_url, f"{game_title}.jpg")
+            image_path = download_game_art(game_title)
+            # Post to Twitter
+            post_to_twitter(game_title, broadcast_url, image_path)
+            # Post to Facebook
+            post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
+        else:
+            # If game title is not found within brackets, use the broadcast title directly and post
+            post_to_twitter(broadcast_title, broadcast_url)
+            post_to_facebook('your_facebook_page_id', broadcast_title, broadcast_url)
