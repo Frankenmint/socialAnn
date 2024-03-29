@@ -19,7 +19,7 @@ def read_csv(file_path):
     """Reads the last five entries from the CSV file and returns them."""
     try:
         with open(file_path, 'r', newline='') as file:
-            reader = csv.reader(file)
+            reader = csv.reader(file, delimiter='~')
             return list(reader)[-5:]  # Return the last 5 entries
     except FileNotFoundError:
         return []  # Return an empty list if the file does not exist
@@ -27,7 +27,7 @@ def read_csv(file_path):
 def append_to_csv(file_path, row_data):
     """Appends a row of data to the CSV file."""
     with open(file_path, 'a', newline='') as file:
-        writer = csv.writer(file)
+        writer = csv.writer(file, delimiter='~')
         writer.writerow(row_data)
 
 def fetch_youtube_broadcast_details():
