@@ -1,27 +1,23 @@
 {
 
 "youtube": {
-  "type": "service_account",
-  "project_id": "lorem_ipsum",
-  "private_key_id": "98b..........4e8a4",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBAD...Zr5lpMBWUCkw45wu9z0=\n-----END PRIVATE KEY-----\n",
-  "client_email": "myAppName@.....iam.gserviceaccount.com",
-  "client_id": "103.....217",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/.....iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
+  "apiKey": "AIza**************************vIL2E",
+  "channelId": "UCn*******************TQ"
 },
 "fb": {
-  "access_token": "Your Facebook Page Access Token"
+  "accessToken": "Your*******************oken"
 },
 
 "twitter": {
-
+"bearerToken" : "AAAAAAAA*******************ITj2ubdA",
+"consumerKey" : "ksf*******************Qf7",
+"consumerSecret": "fZVj6A*******************2rH",
+"accessToken" : "2323*******************SrSS",
+"accessTokenSecret" : "ifMP5*******************FTT"
 },
-"twitch": {
-  
+"igdb": {
+  "clientId": "9op*******************l3l",
+  "clientSecret": "re*******************ag6f2fk0"
 }
 
 }
