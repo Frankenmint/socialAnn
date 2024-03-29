@@ -35,8 +35,8 @@ def fetch_youtube_broadcast_details():
         return None, None
 
 def download_game_art(game_title):
-    client_id = muh['igdb']['client_id']
-    client_secret = muh['igdb']['client_secret']
+    client_id = muh['igdb']['clientId']
+    client_secret = muh['igdb']['clientSecret']
     wrapper = IGDBWrapper(client_id, client_secret)
 
     try:
@@ -60,7 +60,7 @@ def download_game_art(game_title):
     return False
 
 def post_to_facebook(page_id, game_title, broadcast_url, image_path=None):
-    access_token = muh['facebook']['access_token']
+    access_token = muh['fb']['accessToken']
     
     graph = facebook.GraphAPI(access_token)
     message = f"Now broadcasting: {game_title}!\n\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
@@ -73,8 +73,8 @@ def post_to_facebook(page_id, game_title, broadcast_url, image_path=None):
 
 def post_to_twitter(game_title, broadcast_url, image_path=None):
     twtr = muh['twitter']
-    auth = tweepy.OAuthHandler(twtr['consumer_key'], twtr['consumer_secret'])
-    auth.set_access_token(twtr['access_token'], twtr['access_token_secret'])
+    auth = tweepy.OAuthHandler(twtr['consumerKey'], twtr['consumerSecret'])
+    auth.set_access_token(twtr['accessToken'], twtr['accessTokenSec'])
     api = tweepy.API(auth)
     
     image_path = image_path if image_path else "bubble.png"
@@ -93,7 +93,7 @@ if __name__ == "__main__":
             game_title = game_title_search.group(1)
             image_path = download_game_art(game_title)
             post_to_twitter(game_title, broadcast_url, image_path)
-            post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
+            #post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
         else:
             post_to_twitter(broadcast_title, broadcast_url)
-            post_to_facebook('your_facebook_page_id', broadcast_title, broadcast_url)
+            #post_to_facebook('your_facebook_page_id', broadcast_title, broadcast_url)
