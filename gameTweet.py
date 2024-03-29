@@ -7,13 +7,28 @@ import tweepy
 import facebook
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from igdb.wrapper import IGDBWrapper
 import json
+import csv
+
 
 # Load all credentials at once from a single JSON file
 with open('muhKey.json', 'r') as file:
     muh = json.load(file)
 
+def read_csv(file_path):
+    """Reads the last five entries from the CSV file and returns them."""
+    try:
+        with open(file_path, 'r', newline='') as file:
+            reader = csv.reader(file)
+            return list(reader)[-5:]  # Return the last 5 entries
+    except FileNotFoundError:
+        return []  # Return an empty list if the file does not exist
+
+def append_to_csv(file_path, row_data):
+    """Appends a row of data to the CSV file."""
+    with open(file_path, 'a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(row_data)
 
 def fetch_youtube_broadcast_details():
     api_key = muh['youtube']['apiKey']
@@ -29,8 +44,6 @@ def fetch_youtube_broadcast_details():
         maxResults=1  # Adjust if you need more results.
     )
     response = request.execute()
-    # print(response)
-    # exit()
 
     if response['items']:
         broadcast_title = response['items'][0]['snippet']['title']
@@ -40,32 +53,61 @@ def fetch_youtube_broadcast_details():
         return None, None
 
 
-    
+def get_twitch_access_token(client_id, client_secret):
+    """Obtain a Twitch access token."""
+    url = "https://id.twitch.tv/oauth2/token"
+    payload = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'grant_type': 'client_credentials'
+    }
+    response = requests.post(url, data=payload)
+    if response.status_code == 200:
+        return response.json()['access_token']
+    else:
+        print(f"Error obtaining access token: {response.status_code}")
+        return None
+
+def query_igdb(client_id, access_token, query):
+    """Query the IGDB API with the given query."""
+    url = "https://api.igdb.com/v4/games"
+    headers = {
+        'Client-ID': client_id,
+        'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.post(url, headers=headers, data=query)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error querying IGDB: {response.status_code}")
+        print(response.reason)
+        return None
 
 def download_game_art(game_title):
-    client_id = muh['igdb']['clientId']
-    client_secret = muh['igdb']['clientSecret']
-    wrapper = IGDBWrapper(client_id, client_secret)
-
-    try:
-        game_data = wrapper.api_request(
-            'games',
-            f'search "{game_title}"; fields name, cover.url; where version_parent = null; limit 1;'
-        )
-        game_data = json.loads(game_data)
-        if game_data:
-            cover_url = game_data[0]['cover']['url'].replace('t_thumb', 't_cover_big')
+    
+    access_token = get_twitch_access_token(muh["igdb"]["clientId"], muh["igdb"]["clientSecret"])
+    if access_token:
+        print("game title is", game_title)
+        query = 'fields name, cover.url; search "' + game_title + '"; where version_parent = null; limit 1;'
+        print("our query is" , query)
+        gameData = query_igdb(muh["igdb"]["clientId"], access_token, query)
+        if gameData:
+            # print(gameData)
+            # exit()
+            cover_url = gameData[0]['cover']['url'].replace('t_thumb', 't_cover_big')
             cover_url = f"https:{cover_url}"
             image_response = requests.get(cover_url)
             
             if image_response.status_code == 200:
-                local_filename = f"{game_title}.jpg"
+                local_filename = f"./images/{game_title}.jpg"
                 with open(local_filename, 'wb') as file:
                     file.write(image_response.content)
                 return local_filename
-    except Exception as e:
-        print(f"Error fetching or downloading game art from IGDB: {e}")
-    return False
+        else:
+            print("Failed to retrieve data from IGDB.")
+    else:
+        print("Failed to obtain access token.")    
+
 
 def post_to_facebook(page_id, game_title, broadcast_url, image_path=None):
     access_token = muh['fb']['accessToken']
@@ -80,28 +122,43 @@ def post_to_facebook(page_id, game_title, broadcast_url, image_path=None):
         graph.put_object(parent_object=page_id, connection_name='feed', message=message)
 
 def post_to_twitter(game_title, broadcast_url, image_path=None):
-    twtr = muh['twitter']
-    auth = tweepy.OAuthHandler(twtr['consumerKey'], twtr['consumerSecret'])
-    auth.set_access_token(twtr['accessToken'], twtr['accessTokenSec'])
+    auth = tweepy.OAuthHandler(muh['twitter']['consumerKey'], muh['twitter']['consumerSecret'])
+    auth.set_access_token(muh['twitter']['accessToken'], muh['twitter']['accessTokenSecret'])
     api = tweepy.API(auth)
     
-    image_path = image_path if image_path else "bubble.png"
+    image_path = image_path if image_path else "./images/defaulthbom.png"
     media = api.media_upload(image_path)
     
-    tweet = f"Now broadcasting: {game_title}!\n\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
-    api.update_status(status=tweet, media_ids=[media.media_id_string])
+    client = tweepy.Client( muh['twitter']['bearerToken'], muh['twitter']['consumerKey'], muh['twitter']['consumerSecret'], muh['twitter']['accessToken'], muh['twitter']['accessTokenSecret'])
+    tweet = f"Now Streaming: {game_title}!\n\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
+    client.create_tweet(text=tweet, media_ids=[media.media_id_string])
+
+
+
+
 
 if __name__ == "__main__":
+    print("I am le-tired, taking a 5 second nap... then FIRING ZE MISSLES")
     time.sleep(5)
 
+    print("We're fetching the most recent current LIVE video")
     broadcast_title, broadcast_url = fetch_youtube_broadcast_details()
+
     if broadcast_title:
-        game_title_search = re.search(r'\[(.*?)\]', broadcast_title)
-        if game_title_search:
-            game_title = game_title_search.group(1)
-            image_path = download_game_art(game_title)
-            post_to_twitter(game_title, broadcast_url, image_path)
-            #post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
+        print(broadcast_title)
+        print("is there a game title [in brackets] found?")
+        # Find all occurrences of text within brackets
+        game_titles = re.findall(r'\[(.*?)\]', broadcast_title)
+        # If one or more matches are found, use the last one; otherwise, use the broadcast_title
+        if game_titles:
+            print("We found", game_titles[-1])
+            game_title = game_titles[-1]  # This selects the last item from the list
         else:
-            post_to_twitter(broadcast_title, broadcast_url)
-            #post_to_facebook('your_facebook_page_id', broadcast_title, broadcast_url)
+            print("No game titles found, just sharing", broadcast_title)
+            game_title = broadcast_title  # Use the whole title if no brackets are found
+
+        image_path = download_game_art(game_title)
+        print("artwork downloaded to", image_path)
+        post_to_twitter(game_title, broadcast_url, image_path)
+        #post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
+        print("shared titles on social accounts!")
