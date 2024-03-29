@@ -5,6 +5,7 @@ import re
 import requests
 import tweepy
 import facebook
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from igdb.wrapper import IGDBWrapper
 import json
@@ -13,24 +14,33 @@ import json
 with open('muhKey.json', 'r') as file:
     muh = json.load(file)
 
-# Function to fetch the latest YouTube broadcast title and URL using an API key
-def fetch_youtube_broadcast_details(api_key):
+
+def fetch_youtube_broadcast_details():
+    api_key = muh['youtube']['apiKey']
+    channel_id = muh['youtube']['channelId']
     youtube = build('youtube', 'v3', developerKey=api_key)
 
-    request = youtube.liveBroadcasts().list(
-        part='snippet,contentDetails',
-        broadcastStatus='active'
+    request = youtube.search().list(
+        part="snippet",
+        channelId=channel_id,
+        eventType="live",
+        type="video",
+        order="date",  # Ensures the latest videos come first.
+        maxResults=1  # Adjust if you need more results.
     )
-
     response = request.execute()
+    # print(response)
+    # exit()
 
-    if response.get('items'):
+    if response['items']:
         broadcast_title = response['items'][0]['snippet']['title']
-        broadcast_id = response['items'][0]['id']  # Use the broadcast ID
-        broadcast_url = f"https://www.youtube.com/watch?v={broadcast_id}"
+        broadcast_url = f"https://www.youtube.com/watch?v={response['items'][0]['id']['videoId']}"
         return broadcast_title, broadcast_url
     else:
         return None, None
+
+
+    
 
 def download_game_art(game_title):
     client_id = muh['igdb']['clientId']
@@ -75,25 +85,23 @@ def post_to_twitter(game_title, broadcast_url, image_path=None):
     auth.set_access_token(twtr['accessToken'], twtr['accessTokenSec'])
     api = tweepy.API(auth)
     
+    image_path = image_path if image_path else "bubble.png"
+    media = api.media_upload(image_path)
+    
     tweet = f"Now broadcasting: {game_title}!\n\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
-    if image_path:
-        media = api.media_upload(image_path)
-        api.update_status(status=tweet, media_ids=[media.media_id_string])
-    else:
-        api.update_status(status=tweet)
+    api.update_status(status=tweet, media_ids=[media.media_id_string])
 
 if __name__ == "__main__":
-    api_key = muh['youtube']['apiKey']  # Adjust to your actual YouTube API key path in the JSON
-    broadcast_title, broadcast_url = fetch_youtube_broadcast_details(api_key)
+    time.sleep(5)
+
+    broadcast_title, broadcast_url = fetch_youtube_broadcast_details()
     if broadcast_title:
         game_title_search = re.search(r'\[(.*?)\]', broadcast_title)
         if game_title_search:
             game_title = game_title_search.group(1)
             image_path = download_game_art(game_title)
             post_to_twitter(game_title, broadcast_url, image_path)
-            # Uncomment and fill in your Facebook page ID to enable posting to Facebook
-            # post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
+            #post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
         else:
             post_to_twitter(broadcast_title, broadcast_url)
-            # Uncomment and fill in your Facebook page ID to enable posting to Facebook
-            # post_to_facebook('your_facebook_page_id', broadcast_title, broadcast_url)
+            #post_to_facebook('your_facebook_page_id', broadcast_title, broadcast_url)
