@@ -143,11 +143,15 @@ if __name__ == "__main__":
 
     print("We're fetching the most recent current LIVE video")
     broadcast_title, broadcast_url = fetch_youtube_broadcast_details()
+    csv_file_path = 'broadcast_history.csv'  # Specify your CSV file name and path
+
+    # Check if the broadcast has already been shared
+    recent_entries = read_csv(csv_file_path)
+    if any(broadcast_url in entry for entry in recent_entries):
+        print("This broadcast has already been shared. Exiting.")
+        exit()
 
     if broadcast_title:
-        print(broadcast_title)
-        print("is there a game title [in brackets] found?")
-        # Find all occurrences of text within brackets
         game_titles = re.findall(r'\[(.*?)\]', broadcast_title)
         # If one or more matches are found, use the last one; otherwise, use the broadcast_title
         if game_titles:
@@ -161,4 +165,7 @@ if __name__ == "__main__":
         print("artwork downloaded to", image_path)
         post_to_twitter(game_title, broadcast_url, image_path)
         #post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
-        print("shared titles on social accounts!")
+        
+        # Append a new entry to the CSV file
+        append_to_csv(csv_file_path, [broadcast_title, broadcast_url, game_title, image_path])
+        print("Shared on social accounts and recorded in the data store.")
