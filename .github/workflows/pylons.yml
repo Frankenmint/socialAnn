@@ -1,9 +1,12 @@
 name: Run Python Script
 
 on:
+  push:
+    branches:
+      - master
+  deployment_status: {}
   schedule:
-    - cron: '*/3 * * * *'  # Runs every 3 minutes
-
+    - cron: '*/3 * * * *'
 jobs:
   build:
     runs-on: ubuntu-latest
