@@ -6,7 +6,7 @@ on:
       - master
   deployment_status: {}
   schedule:
-    - cron: '*/3 * * * *'
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: write
