@@ -17,6 +17,14 @@ jobs:
         python-version: '3.8'
     - name: Install dependencies
       run: pip install -r requirements.txt
+
+    - name: Set up GCP credentials
+      env:
+        GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+      run: |
+        echo "$GCP_CREDENTIALS" > gcp_credentials.json
+        echo "GOOGLE_APPLICATION_CREDENTIALS=gcp_credentials.json" >> $GITHUB_ENV
+
     - name: Run script
       run: python gameTweet.py
     - name: Configure Git
