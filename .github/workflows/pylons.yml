@@ -1,15 +1,18 @@
-name: Run Python Script
-
-on:
-  push:
-    branches:
-      - master
-  deployment_status: {}
-  schedule:
-    - cron: '*/3 * * * *'
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:  # Define environment variables for all steps in the job
+      GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}
+      FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+      TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+      TWITTER_CONSUMER_KEY: ${{ secrets.TWITTER_CONSUMER_KEY }}
+      TWITTER_CONSUMER_SECRET: ${{ secrets.TWITTER_CONSUMER_SECRET }}
+      TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+      TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+      IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
+      IGDB_CLIENT_SECRET: ${{ secrets.IGDB_CLIENT_SECRET }}
     steps:
     - uses: actions/checkout@v3
       with:
@@ -19,12 +22,11 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: '3.8'
+
     - name: Install dependencies
       run: pip install -r requirements.txt
 
     - name: Set up GCP credentials
-      env:
-        GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
       run: |
         echo "$GCP_CREDENTIALS" > gcp_credentials.json
         echo "GOOGLE_APPLICATION_CREDENTIALS=gcp_credentials.json" >> $GITHUB_ENV
@@ -42,14 +44,3 @@ jobs:
         git add broadcast_history.csv
         git commit -m "Update CSV with new broadcast data" -a || echo "No changes to commit"
         git push
-      env:
-        YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}
-        FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
-        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
-        TWITTER_CONSUMER_KEY: ${{ secrets.TWITTER_CONSUMER_KEY }}
-        TWITTER_CONSUMER_SECRET: ${{ secrets.TWITTER_CONSUMER_SECRET }}
-        TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-        TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
-        IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
-        IGDB_CLIENT_SECRET: ${{ secrets.IGDB_CLIENT_SECRET }}
