@@ -18,7 +18,7 @@ jobs:
     - name: Install dependencies
       run: pip install -r requirements.txt
     - name: Run script
-      run: python your_script.py
+      run: python gameTweet.py
     - name: Configure Git
       run: |
         git config user.name "GitHub Actions"
