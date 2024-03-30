@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 
+import os
 import time
 import re
 import requests
 import tweepy
 import facebook
-from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import json
 import csv
 
-
-# Load all credentials at once from a single JSON file
-with open('muhKey.json', 'r') as file:
-    muh = json.load(file)
+# Environment variables instead of muhKey.json
+api_key = os.getenv("YOUTUBE_API_KEY")
+channel_id = os.getenv("YOUTUBE_CHANNEL_ID")
+fb_access_token = os.getenv("FB_ACCESS_TOKEN")
+twitter_bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
+twitter_consumer_key = os.getenv("TWITTER_CONSUMER_KEY")
+twitter_consumer_secret = os.getenv("TWITTER_CONSUMER_SECRET")
+twitter_access_token = os.getenv("TWITTER_ACCESS_TOKEN")
+twitter_access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
+igdb_client_id = os.getenv("IGDB_CLIENT_ID")
+igdb_client_secret = os.getenv("IGDB_CLIENT_SECRET")
 
 def read_csv(file_path):
     """Reads the last five entries from the CSV file and returns them."""
@@ -31,8 +38,6 @@ def append_to_csv(file_path, row_data):
         writer.writerow(row_data)
 
 def fetch_youtube_broadcast_details():
-    api_key = muh['youtube']['apiKey']
-    channel_id = muh['youtube']['channelId']
     youtube = build('youtube', 'v3', developerKey=api_key)
 
     request = youtube.search().list(
@@ -52,13 +57,12 @@ def fetch_youtube_broadcast_details():
     else:
         return None, None
 
-
-def get_twitch_access_token(client_id, client_secret):
+def get_twitch_access_token():
     """Obtain a Twitch access token."""
     url = "https://id.twitch.tv/oauth2/token"
     payload = {
-        'client_id': client_id,
-        'client_secret': client_secret,
+        'client_id': igdb_client_id,
+        'client_secret': igdb_client_secret,
         'grant_type': 'client_credentials'
     }
     response = requests.post(url, data=payload)
@@ -68,11 +72,11 @@ def get_twitch_access_token(client_id, client_secret):
         print(f"Error obtaining access token: {response.status_code}")
         return None
 
-def query_igdb(client_id, access_token, query):
+def query_igdb(access_token, query):
     """Query the IGDB API with the given query."""
     url = "https://api.igdb.com/v4/games"
     headers = {
-        'Client-ID': client_id,
+        'Client-ID': igdb_client_id,
         'Authorization': f'Bearer {access_token}',
     }
     response = requests.post(url, headers=headers, data=query)
@@ -84,16 +88,11 @@ def query_igdb(client_id, access_token, query):
         return None
 
 def download_game_art(game_title):
-    
-    access_token = get_twitch_access_token(muh["igdb"]["clientId"], muh["igdb"]["clientSecret"])
+    access_token = get_twitch_access_token()
     if access_token:
-        print("game title is", game_title)
-        query = 'fields name, cover.url; search "' + game_title + '"; where version_parent = null; limit 1;'
-        print("our query is" , query)
-        gameData = query_igdb(muh["igdb"]["clientId"], access_token, query)
+        query = f'fields name, cover.url; search "{game_title}"; where version_parent = null; limit 1;'
+        gameData = query_igdb(access_token, query)
         if gameData:
-            # print(gameData)
-            # exit()
             cover_url = gameData[0]['cover']['url'].replace('t_thumb', 't_cover_big')
             cover_url = f"https:{cover_url}"
             image_response = requests.get(cover_url)
@@ -103,17 +102,12 @@ def download_game_art(game_title):
                 with open(local_filename, 'wb') as file:
                     file.write(image_response.content)
                 return local_filename
-        else:
-            print("Failed to retrieve data from IGDB.")
     else:
-        print("Failed to obtain access token.")    
-
+        print("Failed to retrieve data from IGDB or obtain access token.")    
 
 def post_to_facebook(page_id, game_title, broadcast_url, image_path=None):
-    access_token = muh['fb']['accessToken']
-    
-    graph = facebook.GraphAPI(access_token)
-    message = f"Now broadcasting: {game_title}!\n\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
+    graph = facebook.GraphAPI(fb_access_token)
+    message = f"Now broadcasting: {game_title}!\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
     
     if image_path:
         with open(image_path, 'rb') as file:
@@ -122,50 +116,36 @@ def post_to_facebook(page_id, game_title, broadcast_url, image_path=None):
         graph.put_object(parent_object=page_id, connection_name='feed', message=message)
 
 def post_to_twitter(game_title, broadcast_url, image_path=None):
-    auth = tweepy.OAuthHandler(muh['twitter']['consumerKey'], muh['twitter']['consumerSecret'])
-    auth.set_access_token(muh['twitter']['accessToken'], muh['twitter']['accessTokenSecret'])
+    auth = tweepy.OAuthHandler(twitter_consumer_key, twitter_consumer_secret)
+    auth.set_access_token(twitter_access_token, twitter_access_token_secret)
     api = tweepy.API(auth)
     
-    image_path = image_path if image_path else "./images/defaulthbom.png"
+    if image_path is None:
+        image_path = "./images/defaulthbom.png"
     media = api.media_upload(image_path)
     
-    client = tweepy.Client( muh['twitter']['bearerToken'], muh['twitter']['consumerKey'], muh['twitter']['consumerSecret'], muh['twitter']['accessToken'], muh['twitter']['accessTokenSecret'])
-    tweet = f"Now Streaming: {game_title}!\n\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
+    client = tweepy.Client(twitter_bearer_token, twitter_consumer_key, twitter_consumer_secret, twitter_access_token, twitter_access_token_secret)
+    tweet = f"Now Streaming: {game_title}!\nWatch here: {broadcast_url} #{game_title.replace(' ', '')}"
     client.create_tweet(text=tweet, media_ids=[media.media_id_string])
 
-
-
-
-
 if __name__ == "__main__":
-    print("I am le-tired, taking a 5 second nap... then FIRING ZE MISSLES")
-    time.sleep(5)
+    print("Starting script...")
 
-    print("We're fetching the most recent current LIVE video")
     broadcast_title, broadcast_url = fetch_youtube_broadcast_details()
     csv_file_path = 'broadcast_history.csv'  # Specify your CSV file name and path
 
-    # Check if the broadcast has already been shared
     recent_entries = read_csv(csv_file_path)
     if any(broadcast_url in entry for entry in recent_entries):
         print("This broadcast has already been shared. Exiting.")
-        exit()
+    else:
+        if broadcast_title:
+            game_titles = re.findall(r'\[(.*?)\]', broadcast_title)
+            game_title = game_titles[-1] if game_titles else broadcast_title
 
-    if broadcast_title:
-        game_titles = re.findall(r'\[(.*?)\]', broadcast_title)
-        # If one or more matches are found, use the last one; otherwise, use the broadcast_title
-        if game_titles:
-            print("We found", game_titles[-1])
-            game_title = game_titles[-1]  # This selects the last item from the list
-        else:
-            print("No game titles found, just sharing", broadcast_title)
-            game_title = broadcast_title  # Use the whole title if no brackets are found
-
-        image_path = download_game_art(game_title)
-        print("artwork downloaded to", image_path)
-        post_to_twitter(game_title, broadcast_url, image_path)
-        #post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
-        
-        # Append a new entry to the CSV file
-        append_to_csv(csv_file_path, [broadcast_title, broadcast_url, game_title, image_path])
-        print("Shared on social accounts and recorded in the data store.")
+            image_path = download_game_art(game_title)
+            print("Artwork downloaded to", image_path)
+            post_to_twitter(game_title, broadcast_url, image_path)
+            # post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
+            
+            append_to_csv(csv_file_path, [broadcast_title, broadcast_url, game_title, image_path])
+            print("Shared on social accounts and recorded in the data store.")
