@@ -79,9 +79,11 @@ def query_igdb(access_token, query):
         'Client-ID': igdb_client_id,
         'Authorization': f'Bearer {access_token}',
     }
+    print(f"now searching for {query}")
     response = requests.post(url, headers=headers, data=query)
     if response.status_code == 200:
         return response.json()
+        print(response.json())
     else:
         print(f"Error querying IGDB: {response.status_code}")
         print(response.reason)
@@ -93,12 +95,14 @@ def download_game_art(game_title):
         query = f'fields name, cover.url; search "{game_title}"; where version_parent = null; limit 1;'
         gameData = query_igdb(access_token, query)
         if gameData:
+            print(gameData)
             cover_url = gameData[0]['cover']['url'].replace('t_thumb', 't_cover_big')
             cover_url = f"https:{cover_url}"
             image_response = requests.get(cover_url)
             
             if image_response.status_code == 200:
                 local_filename = f"./images/{game_title}.jpg"
+                print(local_filename)
                 with open(local_filename, 'wb') as file:
                     file.write(image_response.content)
                 return local_filename
