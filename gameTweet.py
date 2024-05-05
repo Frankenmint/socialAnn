@@ -19,8 +19,8 @@ twitter_consumer_key = os.getenv("TWITTER_CONSUMER_KEY")
 twitter_consumer_secret = os.getenv("TWITTER_CONSUMER_SECRET")
 twitter_access_token = os.getenv("TWITTER_ACCESS_TOKEN")
 twitter_access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
-igdb_client_id = os.getenv("IDGB_CLIENT_ID")
-igdb_client_secret = os.getenv("IDGB_CLIENT_SECRET")
+igdb_client_id = os.getenv("IGDB_CLIENT_ID")
+igdb_client_secret = os.getenv("IGDB_CLIENT_SECRET")
 
 def read_csv(file_path):
     """Reads the last five entries from the CSV file and returns them."""
