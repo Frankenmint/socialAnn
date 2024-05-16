@@ -79,11 +79,9 @@ def query_igdb(access_token, query):
         'Client-ID': igdb_client_id,
         'Authorization': f'Bearer {access_token}',
     }
-    print(f"now searching for {query}")
     response = requests.post(url, headers=headers, data=query)
     if response.status_code == 200:
         return response.json()
-        print(response.json())
     else:
         print(f"Error querying IGDB: {response.status_code}")
         print(response.reason)
@@ -92,22 +90,29 @@ def query_igdb(access_token, query):
 def download_game_art(game_title):
     access_token = get_twitch_access_token()
     if access_token:
-        query = f'fields name, cover.url; search "{game_title}"; where version_parent = null; limit 1;'
+        query = f'fields name, cover.url, first_release_date; search "{game_title}"; where version_parent = null; limit 10;'
         gameData = query_igdb(access_token, query)
         if gameData:
-            print(gameData)
-            cover_url = gameData[0]['cover']['url'].replace('t_thumb', 't_cover_big')
+            # Filter to find the correct game entry
+            filtered_games = [game for game in gameData if 'cover' in game and game['cover']]
+            if not filtered_games:
+                raise ValueError("No valid game entry with cover art found.")
+
+            # Select the most recent valid entry
+            selected_game = max(filtered_games, key=lambda game: game.get('first_release_date', 0))
+
+            cover_url = selected_game['cover']['url'].replace('t_thumb', 't_cover_big')
             cover_url = f"https:{cover_url}"
             image_response = requests.get(cover_url)
             
             if image_response.status_code == 200:
                 local_filename = f"./images/{game_title}.jpg"
-                print(local_filename)
                 with open(local_filename, 'wb') as file:
                     file.write(image_response.content)
                 return local_filename
     else:
-        print("Failed to retrieve data from IGDB or obtain access token.")    
+        print("Failed to retrieve data from IGDB or obtain access token.")
+    return None
 
 def post_to_facebook(page_id, game_title, broadcast_url, image_path=None):
     graph = facebook.GraphAPI(fb_access_token)
@@ -147,7 +152,10 @@ if __name__ == "__main__":
             game_title = game_titles[-1] if game_titles else broadcast_title
 
             image_path = download_game_art(game_title)
-            print("Artwork downloaded to", image_path)
+            if image_path:
+                print("Artwork downloaded to", image_path)
+            else:
+                print("No artwork downloaded.")
             post_to_twitter(game_title, broadcast_url, image_path)
             # post_to_facebook('your_facebook_page_id', game_title, broadcast_url, image_path)
             
